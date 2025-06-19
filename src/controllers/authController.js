@@ -18,8 +18,8 @@ const register = async (req, res) => {
 //  Login
 const login = async (req, res) => {
     try {
-        const token = await loginService(req, res);
-        res.json({ token });
+        await loginService(req, res);
+        // res.json({ token });
     } catch (error) {
         return res.internalServerError({ message: error.message });
     }
