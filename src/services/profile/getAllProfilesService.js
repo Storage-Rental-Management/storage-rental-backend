@@ -1,72 +1,100 @@
-const User = require('../../models/user');
-const Role = require('../../models/role');
-const { ROLES } = require('../../constants/databaseEnums');
+const User = require("../../models/user");
+const Role = require("../../models/role");
+const { ROLES } = require("../../constants/databaseEnums");
 
 module.exports = async (req, res) => {
   try {
     const {
-      search,
       role,
       status,
-      sortBy = 'createdAt',
-      sortOrder = 'desc',
+      startDate,
+      endDate,
+      search,
+      sortBy = "createdAt",
+      sortOrder = "desc",
       page = 1,
-      limit = 10
+      limit = 10,
     } = req.query;
 
     const query = { isDeleted: false };
 
-    // Exclude SUPER_ADMIN role
+    // Exclude SUPER_ADMIN
     const superAdminRole = await Role.findOne({ name: ROLES.SUPER_ADMIN });
-    const roleFilters = [];
-
     if (superAdminRole) {
-      roleFilters.push({ role: { $ne: superAdminRole._id } });
+      query.role = { $ne: superAdminRole._id };
     }
 
-    // If a role is provided in query
+    // Role filter
     if (role) {
-      const roleDoc = await Role.findOne({ name: role });
-      if (!roleDoc) return res.badRequest({ message: 'Invalid role filter' });
-      roleFilters.push({ role: roleDoc._id });
+      const matchedRole = await Role.findOne({ name: role });
+      if (!matchedRole) {
+        return res.badRequest({ message: "Invalid role filter" });
+      }
+      query.role = matchedRole._id;
     }
 
-    // Merge role filters if needed
-    if (roleFilters.length > 0) {
-      query.$and = roleFilters;
+    // Status filter
+    if (status) {
+      const userStatus = Array.isArray(status)
+        ? status
+        : status.split(",").map((t) => t.trim());
+      query.status = { $in: userStatus };
     }
 
-    // Search logic
+    // Date range filter
+    if (startDate || endDate) {
+      query.joinedAt = {};
+      if (startDate) query.joinedAt.$gte = new Date(startDate);
+      if (endDate) query.joinedAt.$lte = new Date(endDate);
+    }
+
+    // Search filter
     if (search) {
+      const regex = new RegExp(search, "i");
+      const numberSearch = Number(search);
+      const isNumber = !isNaN(numberSearch);
+
       query.$or = [
-        { username: { $regex: search, $options: 'i' } },
-        { email: { $regex: search, $options: 'i' } },
-        { phone: { $regex: search, $options: 'i' } }
+        { username: { $regex: regex } },
+        { email: { $regex: regex } },
+        { phone: { $regex: regex } },
       ];
+
+      // For number search in phone
+      if (isNumber) {
+        query.$or.push({ phone: numberSearch });
+      }
     }
 
-    // Status
-    if (status) query.status = status;
-
-    const sort = {};
-    sort[sortBy] = sortOrder === 'asc' ? 1 : -1;
     const skip = (parseInt(page) - 1) * parseInt(limit);
+    const sortObj = {};
+    sortObj[sortBy || "createdAt"] = sortOrder === "asc" ? 1 : -1;
 
     const [users, total] = await Promise.all([
-      User.find(query).select('-password').sort(sort).skip(skip).limit(parseInt(limit)),
-      User.countDocuments(query)
+      User.find(query)
+        .select("-password")
+        .populate("role", "name")
+        .sort(sortObj)
+        .skip(skip)
+        .limit(parseInt(limit))
+        .lean(),
+      User.countDocuments(query),
     ]);
 
     return res.success({
+      message: "Users fetched successfully",
       data: users,
-      total,
-      page: parseInt(page),
-      limit: parseInt(limit),
-      totalPages: Math.ceil(total / limit)
+      meta: {
+        total,
+        page: parseInt(page),
+        limit: parseInt(limit),
+        pages: Math.ceil(total / limit),
+      },
     });
-
   } catch (error) {
-    console.error('Error fetching users:', error);
-    return res.internalServerError({ message: error.message });
+    return res.internalServerError({
+      message: "Failed to fetch users",
+      error: error.message,
+    });
   }
 };

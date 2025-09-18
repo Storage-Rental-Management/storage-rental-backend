@@ -12,7 +12,6 @@ module.exports = async (req, res) => {
     const saved = await newProfile.save();
     return res.success({ data: saved, message: 'Pricing profile created successfully' });
   } catch (error) {
-    console.error('Error creating pricing profile:', error);
     return res.internalServerError({ message: 'Failed to create pricing profile', data: { errors: error.message } });
   }
 }; 

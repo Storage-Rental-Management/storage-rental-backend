@@ -16,7 +16,6 @@ module.exports = async (req, res) => {
             message: 'Meeting deleted successfully'
         });
     } catch (error) {
-        console.error('Error deleting meeting:', error);
         return res.internalServerError({
             message: 'Failed to delete meeting',
             error: error.message

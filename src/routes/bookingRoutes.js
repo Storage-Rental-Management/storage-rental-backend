@@ -1,6 +1,6 @@
-const express = require('express');
+const express = require("express");
 const router = express.Router();
-const { isAuthenticated } = require('../middlewares/auth');
+const { isAuthenticated, hasRole } = require("../middlewares/auth");
 const {
   createBooking,
   getBookingById,
@@ -8,15 +8,31 @@ const {
   getAllBookings,
   deleteBooking,
   getUserBookings,
-  updateBookingStatus
-} = require('../controllers/bookingController');
+  updateBookingStatus,
+  bookingAction,
+  assignUnitManually,
+  getMonthlyPaymentDetails,
+  sendCashPaymentRequest,
+  actionCashPaymentRequest,
+} = require("../controllers/bookingController");
+const { ROLES } = require("../constants/databaseEnums");
 
-router.post('/', isAuthenticated, createBooking);
-router.get('/', isAuthenticated, getAllBookings);
-router.get('/:id', isAuthenticated, getBookingById);
-router.put('/:id', isAuthenticated, updateBooking);
-router.delete('/:id', isAuthenticated, deleteBooking);
-router.get('/user/:userId', isAuthenticated, getUserBookings);
-router.put('/:id/status', isAuthenticated, updateBookingStatus);
+router.post("/action", isAuthenticated, bookingAction);
+router.get("/user", isAuthenticated, getUserBookings);
+router.post("/", isAuthenticated, createBooking);
+router.get("/", isAuthenticated, getAllBookings);
+router.get("/monthly-payments", isAuthenticated, getMonthlyPaymentDetails);
+router.get("/:id", isAuthenticated, getBookingById);
+router.put("/:id", isAuthenticated, updateBooking);
+router.delete("/:id", isAuthenticated, deleteBooking);
+router.put("/:id/status", isAuthenticated, updateBookingStatus);
+router.post(
+  "/manual-assign",
+  isAuthenticated,
+  hasRole(ROLES.ADMIN, ROLES.SUPER_ADMIN),
+  assignUnitManually
+);
+router.post("/cash-payment-request", isAuthenticated, sendCashPaymentRequest);
+router.post("/cash-payment-request/action", isAuthenticated, actionCashPaymentRequest);
 
-module.exports = router; 
+module.exports = router;

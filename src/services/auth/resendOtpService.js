@@ -14,7 +14,7 @@ module.exports = async (req, res) => {
 
     const user = await User.findOne({ email });
     if (!user) {
-      return res.badRequest({ message: "User not found" });
+      return res.recordNotFound({ message: "User not found" });
     }
 
     if (user.isVerified) {

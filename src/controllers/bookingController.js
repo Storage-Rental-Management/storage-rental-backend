@@ -5,6 +5,11 @@ const deleteBookingService = require('../services/booking/deleteBookingService')
 const getUserBookingsService = require('../services/booking/getUserBookingsService');
 const updateBookingStatusService = require('../services/booking/updateBookingStatusService');
 const getAllBookingsService = require('../services/booking/getAllBookingsService');
+const bookingActionService = require('../services/booking/bookingActionService');
+const manualUnitAssignment = require('../services/booking/manualUnitAssignmentService');
+const getMonthlyPaymentDetailsService = require('../services/booking/getMonthlyPaymentDetailsService');
+const sendCashPaymentRequestService = require('../services/booking/sendCashPaymentRequestService');
+const actionCashPaymentRequestService = require('../services/booking/actionCashPaymentRequestService');
 
 const createBooking = async (req, res) => {
   try {
@@ -62,6 +67,46 @@ const getAllBookings = async (req, res) => {
     }
   };
 
+const bookingAction = async (req, res) => {
+  try {
+    await bookingActionService(req, res);
+  } catch (error) {
+    return res.internalServerError({ message: error.message });
+  }
+};
+
+const assignUnitManually = async (req, res) => {
+  try {
+    await manualUnitAssignment(req, res);
+  } catch (error) {
+    return res.internalServerError({ message: error.message });
+  }
+};
+
+const getMonthlyPaymentDetails = async (req, res) => {
+  try {
+    await getMonthlyPaymentDetailsService(req, res);
+  } catch (error) {
+    return res.internalServerError({ message: error.message });
+  }
+};
+
+const sendCashPaymentRequest = async (req, res) => {
+  try {
+    await sendCashPaymentRequestService(req, res);
+  } catch (error) {
+    return res.internalServerError({ message: error.message });
+  }
+};
+
+const actionCashPaymentRequest = async (req, res) => {
+  try {
+    await actionCashPaymentRequestService(req, res);
+  } catch (error) {
+    return res.internalServerError({ message: error.message });
+  }
+};
+
 module.exports = {
   createBooking,
   getBookingById,
@@ -69,5 +114,10 @@ module.exports = {
   deleteBooking,
   getUserBookings,
   updateBookingStatus, 
-  getAllBookings
+  getAllBookings,
+  bookingAction,
+  assignUnitManually,
+  getMonthlyPaymentDetails,
+  sendCashPaymentRequest,
+  actionCashPaymentRequest
 }; 

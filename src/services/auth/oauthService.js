@@ -2,7 +2,7 @@ const User = require('../../models/user');
 const Role = require('../../models/role'); // ✅ Import Role model
 const { generateToken } = require('../../resources/utils');
 
-const USER_ROLE_ID = '6847d7981ecb63888314bd55';
+const USER_ROLE_ID = '6853ddd84f22456693eb221b';
 
 class OAuthService {
     static async handleGoogleAuth(profile) {
@@ -17,7 +17,7 @@ class OAuthService {
                 user = await User.create({
                     email: profile.emails[0].value,
                     username: profile.displayName,
-                    profileImage: profile.photos[0].value,
+                    profileImage: profile.photos[0]?.value,
                     isVerified: true,
                     authProvider: 'google',
                     authProviderId: profile.id,
@@ -26,11 +26,12 @@ class OAuthService {
             } else if (user.authProvider !== 'google') {
                 user.authProvider = 'google';
                 user.authProviderId = profile.id;
-                user.profileImage = profile.photos[0].value;
+                user.profileImage = profile.photos[0]?.value;
                 await user.save();
             }
 
             const token = generateToken(user);
+            console.log("Google token", token)
             return { user, token };
         } catch (error) {
             throw new Error(`Google authentication failed: ${error.message}`);
@@ -65,6 +66,7 @@ class OAuthService {
             }
 
             const token = generateToken(user);
+            console.log("Facebook token", token)
             return { user, token };
         } catch (error) {
             throw new Error(`Facebook authentication failed: ${error.message}`);
@@ -92,6 +94,7 @@ class OAuthService {
             }
 
             const token = generateToken(user);
+            console.log("Apple token", token)
             return { user, token };
         } catch (error) {
             throw new Error(`Apple authentication failed: ${error.message}`);

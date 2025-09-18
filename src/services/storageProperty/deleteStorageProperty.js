@@ -1,16 +1,8 @@
 const StorageProperty = require('../../models/storageProperty');
-
-// module.exports = async (req, res) => {
-//     try {
-//         const { id } = req.params;
-//         const deleted = await StorageProperty.findByIdAndDelete(id);
-//         if (!deleted) return res.recordNotFound({ message: 'Property not found' });
-//         return res.success({ message: 'Property deleted successfully' });
-//     } catch (error) {
-//         console.error('Error deleting storage property:', error);
-//         return res.internalServerError({ message: 'Failed to delete storage property', data: { errors: error.message } });
-//     }
-// };
+const StorageUnit = require('../../models/storageUnit');
+const Booking = require('../../models/booking');
+const Meeting = require('../../models/meeting');
+const Documents = require('../../models/document');
 
 module.exports = async (req, res) => {
     try {
@@ -26,11 +18,27 @@ module.exports = async (req, res) => {
             return res.recordNotFound({ message: 'Property not found' });
         }
 
-        return res.success({ message: 'Property deleted successfully (soft delete)' });
+        // Find all units under this property
+        const units = await StorageUnit.find({ propertyId: id });
+
+        for (const unit of units) {
+            // Soft delete the unit
+            await StorageUnit.findByIdAndUpdate(unit._id, { isDeleted: true });
+
+            // Hard delete all bookings for this unit
+            await Booking.deleteMany({ unitId: unit._id });
+
+            // Hard delete all meetings for this unit
+            await Meeting.deleteMany({ unitId: unit._id });
+
+            // Hard delete all documents for this unit
+            await Documents.deleteMany({ unitId: unit._id });
+        }
+
+        return res.success({ message: 'Property and all related units, bookings, meetings, and documents deleted.' });
     } catch (error) {
-        console.error('Error soft deleting storage property:', error);
         return res.internalServerError({
-            message: 'Failed to soft delete storage property',
+            message: 'Failed to delete storage property and related data',
             data: { errors: error.message }
         });
     }

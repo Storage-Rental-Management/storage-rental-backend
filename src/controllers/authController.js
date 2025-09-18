@@ -1,5 +1,7 @@
 const registerService = require('../services/auth/registerService');
 const loginService = require('../services/auth/loginService');
+const getUserService = require('../services/auth/getUserService');
+const socialLoginService = require('../services/auth/socialLoginService');
 const verifyOtpService = require('../services/auth/verifyOtpService');
 const resetPasswordService = require('../services/auth/resetPasswordService');
 const resendOtpService = require('../services/auth/resendOtpService');
@@ -18,8 +20,17 @@ const register = async (req, res) => {
 //  Login
 const login = async (req, res) => {
     try {
-        await loginService(req, res);
-        // res.json({ token });
+        const token = await loginService(req, res);
+        res.json({ token });
+    } catch (error) {
+        return res.internalServerError({ message: error.message });
+    }
+};
+
+//  Social Login
+const socialLogin = async (req, res) => {
+    try {
+        await socialLoginService(req, res);
     } catch (error) {
         return res.internalServerError({ message: error.message });
     }
@@ -62,11 +73,22 @@ const forgotPassword = async (req, res) => {
     }
 };
 
+// Get User Details
+const getUser = async (req, res) => {
+    try {
+        await getUserService(req, res);
+    } catch (error) {
+        return res.internalServerError({ message: error.message });
+    }
+};
+
 module.exports = {
   register,
   login,
   verifyOtp,
   resetPassword,
   resendOtp,
-  forgotPassword
+  forgotPassword,
+  socialLogin,
+  getUser
 };

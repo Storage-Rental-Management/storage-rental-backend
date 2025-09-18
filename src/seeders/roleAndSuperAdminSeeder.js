@@ -1,41 +1,49 @@
-const bcrypt = require('bcryptjs');
-const connectDB = require('../config/db'); 
-const Role = require('../models/role'); 
-const User = require('../models/user'); 
-const dotenv = require('dotenv');
-
+const bcrypt = require("bcryptjs");
+const connectDB = require("../config/db");
+const Role = require("../models/role");
+const User = require("../models/user");
+const dotenv = require("dotenv");
+const { ROLES } = require("../constants/databaseEnums");
 
 dotenv.config();
 
-const roles = ['Admin', 'Super Admin', 'User'];
+const roles = ["Admin", "SuperAdmin", "User"];
 const defaultSuperAdmin = {
-  username: 'superadmin',
-  email: 'superadmin@yopmail.com',
-  phone: '9999999999',
-  password: 'SuperAdmin@123',
+  username: "superadmin",
+  email: "superadmin@yopmail.com",
+  phone: "9999999999",
+  password: "SuperAdmin@123",
+  isVerified: true,
 };
 
 const seedData = async () => {
-    try {
+  try {
     await connectDB();
 
     // 1. Seed roles
     let superAdminRole;
+
     for (const roleName of roles) {
       let role = await Role.findOne({ name: roleName });
       if (!role) {
         role = await Role.create({ name: roleName });
-        console.log(`✅ Created role: ${roleName}`);
       } else {
         console.log(`ℹ️ Role already exists: ${roleName}`);
       }
-      if (role.name === 'Super Admin') {
+
+      if (role.name === ROLES.SUPER_ADMIN) {
         superAdminRole = role;
       }
     }
 
+    // Validate that SuperAdmin role was found/created
+    if (!superAdminRole) {
+      throw new Error("SuperAdmin role was not created or found");
+    }
+
     // 2. Seed Super Admin user
     const existingUser = await User.findOne({ email: defaultSuperAdmin.email });
+
     if (!existingUser) {
       const hashedPassword = await bcrypt.hash(defaultSuperAdmin.password, 10);
       await User.create({
@@ -43,15 +51,14 @@ const seedData = async () => {
         password: hashedPassword,
         role: superAdminRole._id,
       });
-      console.log(`✅ Super Admin user created: ${defaultSuperAdmin.email}`);
     } else {
-      console.log(`ℹ️ Super Admin user already exists: ${defaultSuperAdmin.email}`);
+      console.log(
+        `ℹ️ Super Admin user already exists: ${defaultSuperAdmin.email}`
+      );
     }
-
-    console.log('🎉 Seeding complete.');
-    process.exit();
+    process.exit(0);
   } catch (error) {
-    console.error('❌ Seeding failed:', error);
+    console.error("❌ Seeding failed:", error);
     process.exit(1);
   }
 };

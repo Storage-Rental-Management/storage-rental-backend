@@ -4,6 +4,9 @@ const getStorageUnitById = require('../services/storageUnit/getStorageUnitById')
 const updateStorageUnit = require('../services/storageUnit/updateStorageUnit');
 const deleteStorageUnit = require('../services/storageUnit/deleteStorageUnit');
 const getDocumentTypes = require('../services/storageUnit/getDocumentTypes');
+const getStorageUnitsPublic = require('../services/storageUnit/getStorageUnitsPublic');
+const getUnitStats = require('../services/storageUnit/getUnitStatsService');
+const recommendUnitService = require('../services/storageUnit/recommendStorageUnit');
 
 const create = async (req, res) => {
   try {
@@ -53,11 +56,38 @@ const getDocumentList = async (req, res) => {
   }
 }
 
+const getPublic = async (req, res) => {
+  try {
+    await getStorageUnitsPublic(req, res);
+  } catch (error) {
+    return res.internalServerError({ message: error.message });
+  }
+};
+
+const getStats = async (req, res) => {
+  try {
+    await getUnitStats(req, res);
+  } catch (error) {
+    return res.internalServerError({ message: error.message });
+  }
+};
+
+const recommendUnit = async (req, res) => {
+  try {
+    await recommendUnitService(req, res);
+  } catch (error) {
+    return res.internalServerError({ message: error.message });
+  }
+};
+
 module.exports = {
   create,
   getAll,
   getById,
   update,
   remove,
-  getDocumentList
+  getDocumentList,
+  getPublic,
+  getStats,
+  recommendUnit
 }; 

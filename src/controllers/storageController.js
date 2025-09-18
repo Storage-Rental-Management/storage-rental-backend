@@ -3,6 +3,8 @@ const getAllStorageProperties = require('../services/storageProperty/getAllStora
 const getStoragePropertyById = require('../services/storageProperty/getStoragePropertyById');
 const updateStorageProperty = require('../services/storageProperty/updateStorageProperty');
 const deleteStorageProperty = require('../services/storageProperty/deleteStorageProperty');
+const getStoragePropertiesPublic = require('../services/storageProperty/getStoragePropertiesPublic');
+const recommendStorageProperty = require('../services/storageProperty/recommendStorageProperty');
 
 const create = async (req, res) => {
   try {
@@ -44,10 +46,28 @@ const remove = async (req, res) => {
   }
 };
 
+const getPublic = async (req, res) => {
+  try {
+    await getStoragePropertiesPublic(req, res);
+  } catch (error) {
+    return res.internalServerError({ message: error.message });
+  }
+}
+
+const recommendProperty = async (req, res) => {
+  try {
+    await recommendStorageProperty(req, res);
+  } catch (error) {
+    return res.internalServerError({ message: error.message });
+  }
+}
+
 module.exports = {
   create,
   getAll,
   getById,
   update,
-  remove
+  remove, 
+  getPublic,
+  recommendProperty
 };

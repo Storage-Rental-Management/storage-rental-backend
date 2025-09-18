@@ -1,6 +1,5 @@
 const Booking = require('../../models/booking');
 const { updateBookingSchema } = require('../../validation/bookingValidation');
-const ActivityLog = require('../../models/activityLog');
 const { BOOKING_STATUS } = require('../../constants/databaseEnums')
 
 module.exports = async (req, res) => {
@@ -15,14 +14,6 @@ module.exports = async (req, res) => {
       { new: true }
     );
     if (!booking) return res.recordNotFound({ message: 'Booking not found' });
-
-    if (booking._id) {
-      await ActivityLog.create({
-        bookingId: booking._id,
-        userId: req.user.id,
-        action: BOOKING_STATUS.FREE
-      });
-    }
 
     return res.success({ data: booking, message: 'Booking updated successfully' });
   } catch (error) {

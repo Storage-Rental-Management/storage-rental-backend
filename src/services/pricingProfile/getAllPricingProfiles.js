@@ -1,9 +1,11 @@
-const PricingProfile = require('../../models/pricingProfile');
+const mongoose = require("mongoose");
+const { ROLES } = require("../../constants/databaseEnums");
+const PricingProfile = require("../../models/pricingProfile");
+const User = require("../../models/user");
 
 module.exports = async (req, res) => {
   try {
     const {
-      search,
       isActive,
       minMonthlyPrice,
       maxMonthlyPrice,
@@ -11,104 +13,136 @@ module.exports = async (req, res) => {
       maxYearlyPrice,
       minDiscount,
       maxDiscount,
-      sortBy = 'createdAt', // default sort field
-      sortOrder = 'desc',
+      search,
+      sortBy = "createdAt",
+      sortOrder = "desc",
       page = 1,
-      limit = 10
+      limit = 10,
     } = req.query;
 
-    const filter = {};
+    const userId = req.user.id;
+    const user = await User.findById(userId).populate("role");
 
-    // 🔍 Search across multiple fields including numeric
-    if (search) {
-      const regex = new RegExp(search, 'i');
-      const searchNumber = Number(search);
-      const isNumeric = !isNaN(searchNumber);
+    const matchStage = {};
 
-      filter.$or = [
-        { name: regex },
-        ...(isNumeric
-          ? [
-              { monthlyCharge: searchNumber },
-              { yearlyCharge: searchNumber },
-              { monthlyDiscount: searchNumber },
-              { yearlyDiscount: searchNumber }
-            ]
-          : [])
-      ];
+    // Role-based access control
+    if (user?.role?.name !== ROLES.SUPER_ADMIN) {
+      matchStage.userId = new mongoose.Types.ObjectId(userId);
     }
 
-    // ✅ Status filter
-    if (typeof isActive !== 'undefined') {
-      filter.isActive = isActive === 'true';
+    // Basic filters
+    if (typeof isActive !== "undefined") {
+      matchStage.isActive = isActive === "true";
     }
 
-    // 💰 Monthly price range
     if (minMonthlyPrice || maxMonthlyPrice) {
-      const range = {};
-      if (minMonthlyPrice) range.$gte = Number(minMonthlyPrice);
-      if (maxMonthlyPrice) range.$lte = Number(maxMonthlyPrice);
-      if (Object.keys(range).length > 0) {
-        filter.monthlyCharge = range;
-      }
+      matchStage.monthlyCharge = {};
+      if (minMonthlyPrice)
+        matchStage.monthlyCharge.$gte = Number(minMonthlyPrice);
+      if (maxMonthlyPrice)
+        matchStage.monthlyCharge.$lte = Number(maxMonthlyPrice);
     }
 
-    // 💰 Yearly price range
     if (minYearlyPrice || maxYearlyPrice) {
-      const range = {};
-      if (minYearlyPrice) range.$gte = Number(minYearlyPrice);
-      if (maxYearlyPrice) range.$lte = Number(maxYearlyPrice);
-      if (Object.keys(range).length > 0) {
-        filter.yearlyCharge = range;
-      }
+      matchStage.yearlyCharge = {};
+      if (minYearlyPrice) matchStage.yearlyCharge.$gte = Number(minYearlyPrice);
+      if (maxYearlyPrice) matchStage.yearlyCharge.$lte = Number(maxYearlyPrice);
     }
 
-    // 🎯 Discount filter (monthly/yearly)
-    if (minDiscount || maxDiscount) {
-      const discountRange = {};
-      if (minDiscount) discountRange.$gte = Number(minDiscount);
-      if (maxDiscount) discountRange.$lte = Number(maxDiscount);
-
-      if (Object.keys(discountRange).length > 0) {
-        filter.$or = filter.$or || [];
-        filter.$or.push(
-          { monthlyDiscount: discountRange },
-          { yearlyDiscount: discountRange }
-        );
-      }
-    }
-
-    // ⏳ Pagination
+    // Pagination
     const skip = (Number(page) - 1) * Number(limit);
+    const sortValue = sortOrder === "asc" ? 1 : -1;
 
-    // ↕️ Sorting
-    const sortOptions = {};
-    sortOptions[sortBy] = sortOrder === 'asc' ? 1 : -1;
+    const pipeline = [{ $match: matchStage }];
 
-    // 📦 Query + Count
-    const [profiles, total] = await Promise.all([
-      PricingProfile.find(filter)
-        .sort(sortOptions)
-        .skip(skip)
-        .limit(Number(limit)),
-      PricingProfile.countDocuments(filter)
+    // Search & Discount filter using $expr
+    const searchConditions = [];
+
+    if (search) {
+      const regex = new RegExp(search, "i");
+      const numSearch = Number(search);
+      const isNumber = !isNaN(numSearch);
+
+      searchConditions.push({ name: { $regex: regex } });
+
+      if (isNumber) {
+        const numericFields = [
+          "monthlyCharge",
+          "yearlyCharge",
+          "monthlyDiscount",
+          "yearlyDiscount",
+        ];
+        numericFields.forEach((field) => {
+          searchConditions.push({
+            $expr: {
+              $regexMatch: {
+                input: { $toString: `$${field}` },
+                regex: regex,
+                options: "i",
+              },
+            },
+          });
+          searchConditions.push({ [field]: numSearch });
+        });
+      }
+    }
+
+    // Discount filter (dynamic range)
+    if (minDiscount || maxDiscount) {
+      const min = Number(minDiscount) || 0;
+      const max = Number(maxDiscount) || 100;
+
+      searchConditions.push({
+        $or: [
+          {
+            $and: [
+              { monthlyDiscount: { $gte: min } },
+              { monthlyDiscount: { $lte: max } },
+            ],
+          },
+          {
+            $and: [
+              { yearlyDiscount: { $gte: min } },
+              { yearlyDiscount: { $lte: max } },
+            ],
+          },
+        ],
+      });
+    }
+
+    if (searchConditions.length > 0) {
+      pipeline.push({ $match: { $or: searchConditions } });
+    }
+
+    // Total count pipeline
+    const countPipeline = [...pipeline, { $count: "total" }];
+
+    // Sort, Skip, Limit
+    pipeline.push({ $sort: { [sortBy || 'createdAt']: sortValue } });
+    pipeline.push({ $skip: skip });
+    pipeline.push({ $limit: Number(limit) });
+
+    const [data, countResult] = await Promise.all([
+      PricingProfile.aggregate(pipeline),
+      PricingProfile.aggregate(countPipeline),
     ]);
 
+    const total = countResult[0]?.total || 0;
+
     return res.success({
-      data: profiles,
+      message: "Pricing profiles fetched successfully",
+      data,
       meta: {
         total,
         page: Number(page),
         limit: Number(limit),
-        pages: Math.ceil(total / limit)
-      }
+        pages: Math.ceil(total / Number(limit)),
+      },
     });
-
   } catch (error) {
-    console.error('Error fetching pricing profiles:', error);
     return res.internalServerError({
-      message: 'Failed to fetch pricing profiles',
-      data: { errors: error.message }
+      message: "Failed to fetch pricing profiles",
+      error: error.message,
     });
   }
 };

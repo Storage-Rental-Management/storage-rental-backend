@@ -1,65 +1,141 @@
-const Meeting = require('../../models/meeting');
+const mongoose = require("mongoose");
+const Meeting = require("../../models/meeting");
+const { ROLES } = require("../../constants/databaseEnums");
+const User = require("../../models/user");
 
 module.exports = async (req, res) => {
-    try {
-        const { 
-            page = 1, 
-            limit = 10, 
-            status,
-            organizerId,
-            attendeeId,
-            search,
-            sortBy = 'scheduledFor',
-            sortOrder = 'desc'
-        } = req.query;
+  try {
+    const {
+      status,
+      organizerId,
+      attendeeId,
+      search,
+      sortBy = "scheduledFor",
+      sortOrder = "desc",
+      page = 1,
+      limit = 10,
+    } = req.query;
 
-        // Build query
-        const query = {};
-        
-        if (status) query.status = status;
-        if (organizerId) query.organizerId = organizerId;
-        if (attendeeId) query.attendeeId = attendeeId;
-        
-        // Search in title and description
-        if (search) {
-            query.$or = [
-                { title: { $regex: search, $options: 'i' } },
-                { description: { $regex: search, $options: 'i' } }
-            ];
-        }
+    // Access Control by Role
+    const userId = req.user.id;
+    const user = await User.findById(userId).populate("role");
 
-        // Calculate skip value for pagination
-        const skip = (parseInt(page) - 1) * parseInt(limit);
+    const matchStage = {};
 
-        // Build sort object
-        const sort = {};
-        sort[sortBy] = sortOrder === 'asc' ? 1 : -1;
-
-        // Execute query with pagination and sorting
-        const meetings = await Meeting.find(query)
-            .populate('organizerId', 'username email')
-            .populate('attendeeId', 'username email')
-            .sort(sort)
-            .skip(skip)
-            .limit(parseInt(limit));
-
-        // Get total count for pagination
-        const total = await Meeting.countDocuments(query);
-
-        return res.success({
-            data: meetings,
-            meta: {
-                total,
-                page: parseInt(page),
-                limit: parseInt(limit),
-                totalPages: Math.ceil(total / parseInt(limit))
-            }
-        });
-    } catch (error) {
-        console.error('Error fetching meetings:', error);
-        return res.internalServerError({
-            message: 'Failed to fetch meetings',
-            error: error.message
-        });
+    // Role-based access control
+    if (user?.role?.name !== ROLES.SUPER_ADMIN) {
+      matchStage.attendeeId = new mongoose.Types.ObjectId(userId);
     }
-}; 
+
+    if (status) matchStage.meetingStatus = status;
+    if (organizerId)
+      matchStage.organizerId = new mongoose.Types.ObjectId(organizerId);
+    if (attendeeId)
+      matchStage.attendeeId = new mongoose.Types.ObjectId(attendeeId);
+
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+    const sort = { [sortBy]: sortOrder === "asc" ? 1 : -1 };
+
+    const pipeline = [{ $match: matchStage }];
+
+    // Populating organizerId
+    pipeline.push(
+      {
+        $lookup: {
+          from: "users",
+          localField: "organizerId",
+          foreignField: "_id",
+          as: "organizer",
+        },
+      },
+      { $unwind: { path: "$organizer", preserveNullAndEmptyArrays: true } },
+
+      // Populating attendeeId
+      {
+        $lookup: {
+          from: "users",
+          localField: "attendeeId",
+          foreignField: "_id",
+          as: "attendee",
+        },
+      },
+      { $unwind: { path: "$attendee", preserveNullAndEmptyArrays: true } },
+
+      // Populating unitId
+      {
+        $lookup: {
+          from: "storageunits",
+          localField: "unitId",
+          foreignField: "_id",
+          as: "unit",
+        },
+      },
+      { $unwind: { path: "$unit", preserveNullAndEmptyArrays: true } },
+
+      // Populating bookingId
+      {
+        $lookup: {
+          from: "bookings",
+          localField: "bookingId",
+          foreignField: "_id",
+          as: "booking",
+        },
+      },
+      { $unwind: { path: "$booking", preserveNullAndEmptyArrays: true } }
+    );
+
+    // Search
+    if (search) {
+      const regex = new RegExp(search, "i");
+
+      pipeline.push({
+        $match: {
+          $or: [
+            { title: { $regex: regex } },
+            { description: { $regex: regex } },
+            { location: { $regex: regex } },
+            { meetingType: { $regex: regex } },
+            { phone: { $regex: regex } },
+            { meetingStatus: { $regex: regex } },
+            { "organizer.username": { $regex: regex } },
+            { "organizer.email": { $regex: regex } },
+            { "attendee.username": { $regex: regex } },
+            { "attendee.email": { $regex: regex } },
+            { "unit.unitNumber": { $regex: regex } },
+            { "booking.bookingStatus": { $regex: regex } },
+          ],
+        },
+      });
+    }
+
+    // Total Count
+    const countPipeline = [...pipeline, { $count: "total" }];
+
+    // Sorting, Pagination
+    pipeline.push({ $sort: sort });
+    pipeline.push({ $skip: skip }, { $limit: parseInt(limit) });
+
+    const [meetings, countResult] = await Promise.all([
+      Meeting.aggregate(pipeline),
+      Meeting.aggregate(countPipeline),
+    ]);
+
+    const total = countResult[0]?.total || 0;
+
+    return res.success({
+      message: "Meetings fetched successfully",
+      data: meetings,
+      meta: {
+        total,
+        page: parseInt(page),
+        limit: parseInt(limit),
+        pages: Math.ceil(total / parseInt(limit)),
+      },
+    });
+  } catch (error) {
+    return res.internalServerError({
+      message: "Failed to fetch meetings",
+      error: error.message,
+    });
+  }
+};

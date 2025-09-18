@@ -1,6 +1,5 @@
 const Meeting = require('../../models/meeting');
 const { updateMeetingSchema } = require('../../validation/meetingValidation');
-const ActivityLog = require('../../models/activityLog');
 
 module.exports = async (req, res) => {
     try {
@@ -22,20 +21,11 @@ module.exports = async (req, res) => {
             return res.recordNotFound({ message: 'Meeting not found' });
         }
 
-        if (meeting.bookingId) {
-            await ActivityLog.create({
-                bookingId: meeting.bookingId,
-                userId: req.user.id,
-                action: req.body.meetingStatus
-            });
-        }
-
         return res.success({
             data: meeting,
             message: 'Meeting updated successfully'
         });
     } catch (error) {
-        console.error('Error updating meeting:', error);
         return res.internalServerError({
             message: 'Failed to update meeting',
             error: error.message

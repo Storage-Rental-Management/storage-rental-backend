@@ -15,7 +15,6 @@ module.exports = async (req, res) => {
             message: 'Meeting retrieved successfully'
         });
     } catch (error) {
-        console.error('Error fetching meeting:', error);
         return res.internalServerError({
             message: 'Failed to fetch meeting',
             error: error.message

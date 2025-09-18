@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Document Resubmission Request</title>
+</head>
+<body>
+    <h2>New Document Resubmission Request</h2>
+    <p>Hello Admin,</p>
+    <p>A user has resubmitted their documents for review.</p>
+    
+    <h3>Document Details:</h3>
+    <ul>
+        <li><strong>User Name:</strong> <%= userName %></li>
+        <li><strong>Document Type:</strong> <%= documentType %></li>
+        <li><strong>Resubmitted Date:</strong> <%= resubmittedDate %></li>
+        <li><strong>Booking ID:</strong> <%= bookingId %></li>
+        <% if (previousStatus) { %>
+            <li><strong>Previous Status:</strong> <%= previousStatus %></li>
+        <% } %>
+    </ul>
+
+    <p>Please review the resubmitted documents at your earliest convenience.</p>
+    
+    <p>Best regards,<br>Storage Backend Team</p>
+</body>
+</html> 

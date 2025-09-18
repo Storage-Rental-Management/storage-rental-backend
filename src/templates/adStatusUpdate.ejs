@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Advertisement Status Update</title>
+</head>
+<body>
+  <h2>Your Advertisement Status Has Been Updated</h2>
+  <p>Hello,</p>
+
+  <p>Your advertisement "<strong><%= adTitle %></strong>" has been <strong><%= status %></strong>.</p>
+
+  <% if (status === 'ad-rejected') { %>
+    <p>Please revise your ad and resubmit it for review.</p>
+
+  <% } else if (status === 'ad-approved') { %>
+    <p>You’ll be notified once it’s published.</p>
+
+  <% } else if (status === 'expired') { %>
+    <p>This advertisement expired on <%= expiryDate %>. You may create a new advertisement if you'd like to run it again.</p>
+
+  <% } else { %>
+    <p>Status updated on: <%= expiryDate %></p>
+  <% } %>
+
+  <p>Regards,<br>Ad Management Team</p>
+</body>
+</html>

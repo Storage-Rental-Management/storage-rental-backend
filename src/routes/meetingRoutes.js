@@ -8,10 +8,14 @@ const {
     updateMeeting,
     deleteMeeting,
     confirmMeeting,
-    completeMeeting
+    completeMeeting,
+    getAvailableSlots,
+    getMeetingsCalendarSummary
 } = require('../controllers/meetingController');
 
+router.get('/slots', isAuthenticated, getAvailableSlots);
 router.get('/', isAuthenticated, getAllMeetings);
+router.get('/calendar-summary', isAuthenticated, getMeetingsCalendarSummary);
 router.post('/', isAuthenticated, createMeeting);
 router.get('/:id', isAuthenticated, getMeetingById);
 router.put('/:id', isAuthenticated, updateMeeting);

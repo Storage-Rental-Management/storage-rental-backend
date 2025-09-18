@@ -36,7 +36,6 @@ module.exports = async (req, res) => {
     return res.success({ message: 'User profile deleted successfully' });
 
   } catch (error) {
-    console.error('Error deleting user profile:', error);
     return res.internalServerError({
       message: 'Failed to delete user profile',
       data: { errors: error.message }

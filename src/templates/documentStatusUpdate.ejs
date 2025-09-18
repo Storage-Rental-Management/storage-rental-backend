@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Document Status Update</title>
+</head>
+<body>
+    <h2>Document Review Status Update</h2>
+    <p>Hello <%= userName %>,</p>
+    
+    <p>Your document submission has been reviewed. Please see the status below:</p>
+    
+    <h3>Documents Needing Resubmission:</h3>
+    <ul>
+        <% documents.forEach(function(doc) { %>
+            <li>
+                <strong><%= doc.type %>:</strong> <%= doc.comments %>
+            </li>
+        <% }); %>
+    </ul>
+
+    <p><strong>Review Date:</strong> <%= reviewDate %></p>
+    
+    <p>Please review the comments above and resubmit your documents accordingly.</p>
+    
+    <p>Best regards,<br/>Storage Backend Team</p>
+</body>
+</html>

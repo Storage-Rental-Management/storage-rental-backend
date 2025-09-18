@@ -8,7 +8,7 @@ module.exports = async (req, res) => {
   try {
     const { error, value } = await verifyOtpSchema.validate(req.body);
     if (error) {
-      throwError(error.details[0].message, 400);
+      return res.validationError({ message: error.details[0].message });
     }
     const { email, otp } = value;
 
@@ -18,30 +18,29 @@ module.exports = async (req, res) => {
     }
 
     // Add these checks
-    if (user.isVerified) throwError("Email already verified");
+    if (user.isVerified) {
+      return res.badRequest({ message: "Email already verified." });
+    }
 
     // Check OTP (support STATIC_OTP)
     let otpRecord;
     if (otp === process.env.STATIC_OTP) {
       otpRecord = {
-        otpExpiry: new Date(Date.now() + 5 * 60 * 1000),
+        expiresAt: new Date(Date.now() + 5 * 60 * 1000),
         _id: null,
       };
     } else {
       otpRecord = await Otp.findOne({
-        recordId: user._id.toString(),
+        email,
         otp,
-        record: "Admin",
       });
     }
     if (!otpRecord) {
       return res.badRequest({ message: "Invalid OTP" });
     }
 
-    // const otpRecord = await Otp.findOne({ email, otp, expiresAt: { $gt: new Date() } });
-
     // Check expiry
-    if (!otpRecord.otpExpiry || new Date() > otpRecord.otpExpiry) {
+    if (!otpRecord.expiresAt || new Date() > otpRecord.expiresAt) {
       if (otpRecord._id) {
         await Otp.deleteOne({ _id: otpRecord._id });
       }
@@ -64,17 +63,27 @@ module.exports = async (req, res) => {
     const token = jwt.sign(tokenPayload, process.env.JWT_SECRET, {
       expiresIn: "1d",
     });
-    console.log("Generated JWT Token:", token);
 
     return res.success({
       message: "OTP verified successfully",
-      token,
       data: {
-        id: user._id,
-        username: user.username,
-        email: user.email,
-        role: user.role.name,
-        isVerified: true,
+        token,
+        user: {
+          id: user._id,
+          username: user.username,
+          email: user.email,
+          phone: user.phone,
+          fcm_token: user.fcm_token || "",
+          role: user.role,
+          authProvider: user.authProvider,
+          authProviderId: user.authProviderId,
+          isVerified: user.isVerified,
+          status: user.status,
+          joinedAt: user.joinedAt,
+          profileImage: user.profileImage,
+          createdAt: user.createdAt,
+          updatedAt: user.updatedAt
+        },
       },
     });
   } catch (error) {

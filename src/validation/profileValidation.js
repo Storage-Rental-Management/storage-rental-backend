@@ -1,4 +1,5 @@
-const Joi = require('joi');
+const Joi = require("joi");
+const { USER_STATUS } = require("../constants/databaseEnums");
 
 // exports.updateProfileSchema = Joi.object({
 //     username: Joi.string().min(3).max(50).optional().messages({
@@ -21,8 +22,13 @@ const Joi = require('joi');
 // });
 
 exports.updateProfileSchema = Joi.object({
-    username: Joi.string().min(3).max(50).optional(),
-    phone: Joi.string().pattern(/^[0-9]{10}$/).optional(),
-    email: Joi.string().email().optional(),
-    isBlocked: Joi.boolean().optional()
+  username: Joi.string().min(3).max(50).optional(),
+  phone: Joi.string()
+    .pattern(/^[0-9]{10}$/)
+    .optional(),
+  email: Joi.string().email().optional(),
+  isBlocked: Joi.boolean().optional(),
+  status: Joi.string()
+    .valid(...Object.values(USER_STATUS))
+    .optional(),
 });

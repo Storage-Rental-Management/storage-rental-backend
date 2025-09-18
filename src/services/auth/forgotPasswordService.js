@@ -1,8 +1,7 @@
-const User = require('../../models/user');
-const Otp = require('../../models/otp'); // Add this import
-const { generateOtp } = require('../../resources/utils');
-const { sendOtpEmail } = require('../../resources/emailUtils');
-const { forgotPasswordSchema } = require('../../validation/authValidation');
+const User = require("../../models/user");
+const { sendResetPasswordEmail } = require("../../resources/emailUtils");
+const { forgotPasswordSchema } = require("../../validation/authValidation");
+const { encrypt } = require("../../utils/encryption");
 
 module.exports = async (req, res) => {
   try {
@@ -17,39 +16,33 @@ module.exports = async (req, res) => {
       return res.recordNotFound({ message: "User not found" });
     }
 
-    // Delete old OTPs (using consistent capitalization)
-    await Otp.deleteMany({ email });
+    // Token payload
+    const payload = {
+      userId: user._id.toString(),
+      exp: Date.now() + 1000 * 60 * 10, // 10 min expiry
+    };
 
-    // Generate new OTP
-    const { otpCode, otpExpiry } = generateOtp();
-    
-    // Create new OTP (using consistent capitalization)
-    await Otp.create({
-      email,
-      otp: otpCode,
-      expiresAt: otpExpiry,
-    });
-    
-    // Send OTP email (using user.username instead of undefined username)
+    // Set isVerified to false when forgot password is initiated
+    user.isVerified = false;
+    await user.save();
+
+    const token = encodeURIComponent(encrypt(payload));
+    const resetLink = `${process.env.FRONTEND_URL}/reset-password?token=${token}`;
+
     // await sendOtpEmail(email, otpCode, user.username);
-    const username = user.username || user.name || 'User';
-    
-    // Send OTP email with error handling
+    const username = user.username || user.name || "User";
+
     try {
-      await sendOtpEmail(email, otpCode, username);
+      await sendResetPasswordEmail(user.email, { username, resetLink });
     } catch (emailError) {
-      console.error('Email sending error:', emailError);
-      // Still return success to user but log the email error
-      // You might want to handle this differently based on your requirements
-      return res.success({ 
-        message: "Password reset initiated. If email doesn't arrive, please contact support." 
+      return res.success({
+        message:
+          "Password reset initiated. If email doesn't arrive, please contact support.",
       });
     }
 
-
-    return res.success({ message: "OTP sent to your email" });
+    return res.success({ message: "Password reset link sent to your email" });
   } catch (error) {
-    console.error('Forgot password error:', error);
     return res.internalServerError({
       message: "Forgot password failed",
       data: { errors: error.message },

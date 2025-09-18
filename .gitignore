@@ -4,6 +4,9 @@ node_modules/
 # Ignore environment variables
 .env
 
+# ignore json of firebase config
+storage-management-646a1-firebase-adminsdk-fbsvc-0aa43f1f40.json
+
 # Ignore uploads directory
 /uploads/
 

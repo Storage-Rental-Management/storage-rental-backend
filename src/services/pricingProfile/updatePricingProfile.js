@@ -11,7 +11,7 @@ module.exports = async (req, res) => {
     
     const existingProfile = await PricingProfile.findOne({ _id: id, userId: req.user.id });
     if (!existingProfile) {
-      return res.notFound({ message: 'Pricing profile not found or unauthorized' });
+      return res.recordNotFound({ message: 'Pricing profile not found or unauthorized' });
     }
     
     const updated = await PricingProfile.findOneAndUpdate(
@@ -21,7 +21,7 @@ module.exports = async (req, res) => {
     );
     
     if (!updated) {
-      return res.notFound({ message: 'Pricing profile not found' });
+      return res.recordNotFound({ message: 'Pricing profile not found' });
     }
     return res.success({ data: updated, message: 'Pricing profile updated successfully' });
     

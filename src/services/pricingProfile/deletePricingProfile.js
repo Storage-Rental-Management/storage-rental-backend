@@ -24,11 +24,10 @@ module.exports = async (req, res) => {
       { new: true }
     );
 
-    if (!updated) return res.notFound({ message: 'Pricing profile not found' });
+    if (!updated) return res.recordNotFound({ message: 'Pricing profile not found' });
 
     return res.success({ message: 'Pricing profile deleted successfully (soft delete)' });
   } catch (error) {
-    console.error('Error soft deleting pricing profile:', error);
     return res.internalServerError({
       message: 'Failed to delete pricing profile',
       data: { errors: error.message },
